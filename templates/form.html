@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Add' if mode == 'add' else 'Edit' }} software · ReleaseRadar{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ 'Add software' if mode == 'add' else 'Edit ' + (item.name or '') }}</h1>
+  <a class="btn" href="{{ url_for('dashboard') }}">Back</a>
+</div>
+
+<form method="post" class="stack form-wide"
+      action="{{ url_for('add') if mode == 'add' else url_for('edit', item_id=item.id) }}">
+
+  <div class="field-row">
+    <label class="grow">Name *
+      <input type="text" name="name" value="{{ item.name or '' }}" required
+             placeholder="e.g. Google Chrome">
+    </label>
+    <label>Platform
+      <select name="platform">
+        {% set p = item.platform or 'windows' %}
+        <option value="windows" {{ 'selected' if p == 'windows' }}>Windows</option>
+        <option value="mac" {{ 'selected' if p == 'mac' }}>macOS</option>
+        <option value="both" {{ 'selected' if p == 'both' }}>Both</option>
+      </select>
+    </label>
+    <label>Current packaged version
+      <input type="text" name="current_version" value="{{ item.current_version or '' }}"
+             placeholder="e.g. 120.0.6099.110">
+    </label>
+  </div>
+
+  <fieldset>
+    <legend>Sources <span class="muted small">— fill in any that apply; each is queried independently</span></legend>
+
+    <label>Winget package id
+      <input type="text" name="winget_id" value="{{ item.winget_id or '' }}"
+             placeholder="Google.Chrome">
+      <span class="hint">PackageIdentifier from winget (Publisher.Package).</span>
+    </label>
+
+    <label>Chocolatey package id
+      <input type="text" name="choco_id" value="{{ item.choco_id or '' }}"
+             placeholder="googlechrome">
+      <span class="hint">The id on community.chocolatey.org.</span>
+    </label>
+
+    <label>PatchMyPC title
+      <input type="text" name="patchmypc_name" value="{{ item.patchmypc_name or '' }}"
+             placeholder="Google Chrome">
+      <span class="hint">Matches against the PatchMyPC Home Updater definition titles.</span>
+    </label>
+
+    <label>Homebrew cask (macOS)
+      <input type="text" name="homebrew_cask" value="{{ item.homebrew_cask or '' }}"
+             placeholder="google-chrome">
+      <span class="hint">The cask token from formulae.brew.sh.</span>
+    </label>
+
+    <label>Vendor RSS / release-notes URL
+      <input type="text" name="rss_url" value="{{ item.rss_url or '' }}"
+             placeholder="https://github.com/owner/repo/releases.atom">
+      <span class="hint">Used for the most accurate security-vs-UI classification.</span>
+    </label>
+  </fieldset>
+
+  <label>Notes
+    <textarea name="notes" rows="2" placeholder="Internal notes…">{{ item.notes or '' }}</textarea>
+  </label>
+
+  <div class="field-row">
+    <button type="submit" class="btn primary">{{ 'Add' if mode == 'add' else 'Save changes' }}</button>
+    <a class="btn" href="{{ url_for('dashboard') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

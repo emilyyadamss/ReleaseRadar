@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ item.name }} · ReleaseRadar{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ item.name }}</h1>
+  <div class="inline">
+    <form action="{{ url_for('check_one', item_id=item.id) }}" method="post" class="inline">
+      <button type="submit" class="btn primary">⟳ Check now</button>
+    </form>
+    <a class="btn" href="{{ url_for('edit', item_id=item.id) }}">✎ Edit</a>
+    <a class="btn" href="{{ url_for('dashboard') }}">Back</a>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <div class="kv"><span>Platform</span><strong>{{ item.platform }}</strong></div>
+  <div class="kv"><span>Current packaged</span><strong>{{ item.current_version or '—' }}</strong></div>
+  <div class="kv"><span>Latest found</span><strong>{{ item.latest_version or '—' }}
+    {% if item.latest_source %}<span class="muted small">({{ item.latest_source }})</span>{% endif %}</strong></div>
+  <div class="kv"><span>Status</span><strong>
+    {% if item.status == 'update_available' %}<span class="badge badge-warn">Update available</span>
+    {% elif item.status == 'up_to_date' %}<span class="badge badge-ok">Up to date</span>
+    {% elif item.status == 'error' %}<span class="badge badge-err">Error</span>
+    {% else %}<span class="badge badge-muted">Not checked</span>{% endif %}
+  </strong></div>
+  <div class="kv"><span>Update type</span><strong>
+    {% if item.update_type == 'security' %}<span class="badge badge-security">Security</span>
+    {% elif item.update_type == 'ui' %}<span class="badge badge-ui">UI / Feature</span>
+    {% elif item.update_type in ('n/a', None, '') %}—
+    {% else %}<span class="badge badge-muted">{{ item.update_type }}</span>{% endif %}
+    {% if item.classify_method == 'ai' %}<span class="tag-ai">AI</span>
+    {% elif item.classify_method == 'catalog' %}<span class="tag-heuristic">PatchMyPC</span>
+    {% elif item.classify_method == 'auto-notes' %}<span class="tag-heuristic">vendor notes</span>
+    {% elif item.classify_method == 'heuristic' %}<span class="tag-heuristic">heuristic</span>{% endif %}
+  </strong></div>
+  <div class="kv"><span>Last checked</span><strong>{{ item.last_checked or 'never' }}</strong></div>
+</div>
+
+{% if item.source_results %}
+<h2>Versions by source</h2>
+<table class="grid compact">
+  <tbody>
+    {% for src, ver in item.source_results.items() %}
+    <tr><td class="strong">{{ src }}</td><td>{{ ver }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if item.status == 'update_available' %}
+<div class="ai-row">
+  {% if ai_available %}
+  <form action="{{ url_for('classify_ai', item_id=item.id) }}" method="post" class="inline">
+    <button type="submit" class="btn">✨ Analyze with AI</button>
+  </form>
+  <span class="muted small">Re-classify these notes using Claude for a more nuanced call.</span>
+  {% else %}
+  <span class="muted small">Set <code>ANTHROPIC_API_KEY</code> to enable AI analysis.</span>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if item.release_notes %}
+<h2>Release notes used for classification</h2>
+<pre class="notes">{{ item.release_notes }}</pre>
+{% endif %}
+
+{% if item.notes %}
+<h2>Your notes</h2>
+<p>{{ item.notes }}</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · ReleaseRadar{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Software watchlist</h1>
+  <form action="{{ url_for('check_all') }}" method="post" class="inline">
+    <button type="submit" class="btn primary">Check all now</button>
+  </form>
+</div>
+
+<div class="cards">
+  <div class="card"><div class="num">{{ summary.total }}</div><div class="lbl">Tracked</div></div>
+  <div class="card warn"><div class="num">{{ summary.update_available }}</div><div class="lbl">Updates available</div></div>
+  <div class="card danger"><div class="num">{{ summary.security }}</div><div class="lbl">Security updates</div></div>
+  <div class="card muted-card"><div class="num">{{ summary.errors }}</div><div class="lbl">Check errors</div></div>
+</div>
+
+{% if not items %}
+  <div class="empty">
+    <p>No software tracked yet.</p>
+    <a class="btn primary" href="{{ url_for('add') }}">Add your first item</a>
+  </div>
+{% else %}
+<table class="grid">
+  <thead>
+    <tr>
+      <th>Software</th>
+      <th>Platform</th>
+      <th>Current</th>
+      <th>Latest found</th>
+      <th>Status</th>
+      <th>Update type</th>
+      <th>Last checked</th>
+      <th class="actions-col">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for it in items %}
+    <tr>
+      <td>
+        <a class="strong" href="{{ url_for('item_detail', item_id=it.id) }}">{{ it.name }}</a>
+        {% if it.source_results %}
+          <div class="sources-line">
+            {% for src, ver in it.source_results.items() %}
+              <span class="chip">{{ src }} {{ ver }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </td>
+      <td><span class="platform">{{ it.platform }}</span></td>
+      <td>{{ it.current_version or "—" }}</td>
+      <td>{{ it.latest_version or "—" }}{% if it.latest_source %} <span class="muted small">({{ it.latest_source }})</span>{% endif %}</td>
+      <td>
+        {% if it.status == 'update_available' %}
+          <span class="badge badge-warn">Update available</span>
+        {% elif it.status == 'up_to_date' %}
+          <span class="badge badge-ok">Up to date</span>
+        {% elif it.status == 'error' %}
+          <span class="badge badge-err">Error</span>
+        {% else %}
+          <span class="badge badge-muted">Not checked</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if it.status == 'update_available' %}
+          {% if it.update_type == 'security' %}
+            <span class="badge badge-security">Security</span>
+          {% elif it.update_type == 'ui' %}
+            <span class="badge badge-ui">UI / Feature</span>
+          {% else %}
+            <span class="badge badge-muted">Unknown</span>
+          {% endif %}
+          {% if it.classify_method == 'ai' %}<span class="tag-ai">AI</span>{% endif %}
+        {% else %}
+          —
+        {% endif %}
+      </td>
+      <td class="muted small">{{ it.last_checked or "never" }}</td>
+      <td class="actions-col">
+        <form action="{{ url_for('check_one', item_id=it.id) }}" method="post" class="inline">
+          <button type="submit" class="btn tiny" title="Check now">⟳</button>
+        </form>
+        <a class="btn tiny" href="{{ url_for('edit', item_id=it.id) }}" title="Edit">✎</a>
+        <form action="{{ url_for('delete', item_id=it.id) }}" method="post" class="inline"
+              onsubmit="return confirm('Delete {{ it.name }}?');">
+          <button type="submit" class="btn tiny danger-btn" title="Delete">✕</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if not ai_available %}
+<p class="muted small note">
+  Tip: set <code>ANTHROPIC_API_KEY</code> to enable on-demand AI classification of
+  ambiguous release notes.
+</p>
+{% endif %}
+{% endblock %}

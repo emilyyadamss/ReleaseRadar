@@ -1,0 +1,18 @@
+# ReleaseRadar local state
+data/
+*.db
+*.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Secrets / local config
+.env
+instance/
+
+# OS
+.DS_Store
