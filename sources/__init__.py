@@ -26,15 +26,18 @@ class SourceResult:
         return self.version is not None and self.error is None
 
 
-from . import winget, chocolatey, patchmypc, homebrew, rss  # noqa: E402
+from . import winget, chocolatey, patchmypc, homebrew, rss, manual  # noqa: E402
 
 # Maps the watchlist column name -> the source module that consumes it.
+# `manual` is last so public-catalog versions win exact-version ties; it's the
+# only source set for purely internal tools, so it stands alone there.
 REGISTRY = {
     "winget_id": winget,
     "choco_id": chocolatey,
     "patchmypc_name": patchmypc,
     "homebrew_cask": homebrew,
     "rss_url": rss,
+    "manual_version": manual,
 }
 
-__all__ = ["SourceResult", "REGISTRY", "winget", "chocolatey", "patchmypc", "homebrew", "rss"]
+__all__ = ["SourceResult", "REGISTRY", "winget", "chocolatey", "patchmypc", "homebrew", "rss", "manual"]

@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS watchlist (
     patchmypc_name  TEXT,                              -- substring of PatchMyPC title
     homebrew_cask   TEXT,                              -- e.g. google-chrome
     rss_url         TEXT,                              -- vendor release-notes/RSS URL
+    manual_version  TEXT,                              -- internal tool: latest version, entered by hand
 
     notes           TEXT,
 
@@ -64,6 +65,18 @@ def get_conn():
 def init_db():
     with get_conn() as conn:
         conn.executescript(SCHEMA)
+        _migrate(conn)
+
+
+def _migrate(conn):
+    """Add columns introduced after a database was first created.
+
+    CREATE TABLE IF NOT EXISTS leaves an existing watchlist untouched, so new
+    source columns have to be added explicitly for upgraders.
+    """
+    have = {row["name"] for row in conn.execute("PRAGMA table_info(watchlist)")}
+    if "manual_version" not in have:
+        conn.execute("ALTER TABLE watchlist ADD COLUMN manual_version TEXT")
 
 
 # --- Settings helpers -----------------------------------------------------
@@ -88,6 +101,7 @@ def set_setting(key, value):
 WATCHLIST_FIELDS = (
     "name", "platform", "current_version",
     "winget_id", "choco_id", "patchmypc_name", "homebrew_cask", "rss_url",
+    "manual_version",
     "notes",
 )
 

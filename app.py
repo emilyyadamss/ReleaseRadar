@@ -46,18 +46,33 @@ def create_app():
     return app
 
 
+ITEM_FIELDS = (
+    "name", "platform", "current_version",
+    "winget_id", "choco_id", "patchmypc_name", "homebrew_cask", "rss_url",
+    "manual_version", "notes",
+)
+
+
 def _form_to_item(form):
-    return {
-        "name": form.get("name", "").strip(),
-        "platform": form.get("platform", "windows").strip(),
-        "current_version": form.get("current_version", "").strip(),
-        "winget_id": form.get("winget_id", "").strip(),
-        "choco_id": form.get("choco_id", "").strip(),
-        "patchmypc_name": form.get("patchmypc_name", "").strip(),
-        "homebrew_cask": form.get("homebrew_cask", "").strip(),
-        "rss_url": form.get("rss_url", "").strip(),
-        "notes": form.get("notes", "").strip(),
-    }
+    item = {f: form.get(f, "").strip() for f in ITEM_FIELDS}
+    item["platform"] = item["platform"] or "windows"
+    return item
+
+
+def _json_to_item(obj):
+    """Normalise one JSON object into a watchlist item.
+
+    Accepts the same keys as the add form. Missing keys default to blank and
+    every value is coerced to a trimmed string, so a numeric version in the
+    JSON works as well as a quoted one.
+    """
+    def value(key):
+        raw = obj.get(key)
+        return "" if raw is None else str(raw).strip()
+
+    item = {f: value(f) for f in ITEM_FIELDS}
+    item["platform"] = item["platform"] or "windows"
+    return item
 
 
 def register_routes(app):
@@ -163,6 +178,56 @@ def register_routes(app):
             return render_template("form.html", item=data, mode="add")
         return render_template("form.html", item={}, mode="add")
 
+    @app.route("/import", methods=["GET", "POST"])
+    @auth.login_required
+    def import_json():
+        if request.method == "GET":
+            return render_template("import.html")
+
+        raw = _read_import_payload(request)
+        if not raw.strip():
+            flash("Choose a JSON file or paste JSON to import.", "error")
+            return render_template("import.html")
+
+        try:
+            payload = json.loads(raw)
+        except (ValueError, TypeError) as exc:
+            flash(f"Could not parse JSON: {exc}", "error")
+            return render_template("import.html")
+
+        entries = _import_entries(payload)
+        if entries is None:
+            flash("JSON must be a software object, a list of them, "
+                  "or {\"items\": [ ... ]}.", "error")
+            return render_template("import.html")
+
+        added, errors = 0, []
+        for i, entry in enumerate(entries, 1):
+            if not isinstance(entry, dict):
+                errors.append(f"Entry {i}: not a JSON object.")
+                continue
+            data = _json_to_item(entry)
+            if not data["name"]:
+                errors.append(f"Entry {i}: missing \"name\".")
+            elif not any(data[c] for c in REGISTRY):
+                errors.append(
+                    f"Entry {i} ({data['name']}): no source identifier "
+                    "(winget_id, choco_id, …).")
+            else:
+                database.add_item(data)
+                added += 1
+
+        if added:
+            flash(f"Imported {added} item(s).", "success")
+        if errors:
+            shown = "; ".join(errors[:10])
+            extra = "" if len(errors) <= 10 else f" (+{len(errors) - 10} more)"
+            flash(f"Skipped {len(errors)} entr"
+                  f"{'y' if len(errors) == 1 else 'ies'}: {shown}{extra}", "error")
+        if added:
+            return redirect(url_for("dashboard"))
+        return render_template("import.html")
+
     @app.route("/edit/<int:item_id>", methods=["GET", "POST"])
     @auth.login_required
     def edit(item_id):
@@ -257,6 +322,30 @@ def _parse_json(value):
         return json.loads(value)
     except (ValueError, TypeError):
         return {}
+
+
+def _read_import_payload(req):
+    """Raw JSON text from an upload, falling back to a pasted-in textarea."""
+    upload = req.files.get("file")
+    if upload and upload.filename:
+        return upload.read().decode("utf-8", errors="replace")
+    return req.form.get("pasted", "")
+
+
+def _import_entries(payload):
+    """Coerce a parsed JSON payload into a list of entry dicts.
+
+    Accepts one software object, a bare list of them, or a wrapper object with
+    an ``items`` (or ``software``) list. Returns None if the shape is unusable.
+    """
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        for key in ("items", "software"):
+            if isinstance(payload.get(key), list):
+                return payload[key]
+        return [payload]
+    return None
 
 
 def _check_summary(name, result):

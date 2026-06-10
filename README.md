@@ -14,7 +14,7 @@ release notes. Built for the manual Mac + Windows packaging workflow.
 
 - **One watchlist** of the software you support. Each item can pull from any mix
   of sources.
-- **Five version sources**, queried independently per item:
+- **Six version sources**, queried independently per item:
   | Source | What it reads | Identifier you enter |
   |---|---|---|
   | **Winget** | `microsoft/winget-pkgs` manifests on GitHub | PackageIdentifier, e.g. `Google.Chrome` |
@@ -22,12 +22,15 @@ release notes. Built for the manual Mac + Windows packaging workflow.
   | **PatchMyPC** | public catalog release history (version + **its own security/feature label** + vendor notes link) | title, e.g. `Google Chrome` |
   | **Homebrew** | formulae.brew.sh cask API (**macOS**) | cask token, e.g. `google-chrome` |
   | **Vendor RSS** | any RSS/Atom feed or release-notes page | a URL |
+  | **Manual** | nothing — for **internal/homegrown tools** with no catalog or feed | the latest version, typed by hand, e.g. `2.5.1` |
 - **Update classification** — *security* vs *UI/feature*:
   - **Keyword heuristics** run automatically on every check (offline, free). Any
     credible security signal — CVE ids, "vulnerability", "RCE", "CVSS", etc. —
     flags the update as **security**, which is the safe default for patch triage.
   - **AI analysis** (optional) — an "Analyze with AI" button on the detail page
     sends the release notes to Claude for a more nuanced call on ambiguous notes.
+- **JSON import** — bulk-add your watchlist from a JSON file (or pasted JSON)
+  instead of typing each item into the form. One object or many at once.
 - **Single-user security** — one password, no default, brute-force lockout, and
   the server only listens on `127.0.0.1` (your machine) by default.
 
@@ -47,10 +50,30 @@ Open **http://127.0.0.1:5000**. On first run you'll set your password, then you
 land on the dashboard.
 
 1. **Add software** → give it a name and fill in whichever source identifiers
-   apply (you don't need all of them — one is enough).
+   apply (you don't need all of them — one is enough). Or **Import JSON** to add
+   several at once (see below).
 2. Set **Current packaged version** to whatever your enterprise currently ships.
 3. Hit **Check all now** (or check a single item). New versions show up as
    *Update available* with a **Security** or **UI / Feature** badge.
+
+### Importing a watchlist from JSON
+
+**Import JSON** (in the top nav, or on the Add-software page) takes a `.json`
+file upload or pasted JSON and adds one item or many. The payload can be a single
+object, a list of objects, or `{"items": [ … ]}`. Each entry needs a `name` and
+at least one source identifier; entries that fail validation are skipped with a
+reason, and the rest still import.
+
+```json
+[
+  {"name": "Google Chrome", "platform": "both", "winget_id": "Google.Chrome", "choco_id": "googlechrome"},
+  {"name": "Internal Dashboard", "manual_version": "2.5.1", "notes": "Homegrown tool"}
+]
+```
+
+Recognised fields: `name`, `platform` (`windows` / `mac` / `both`),
+`current_version`, `winget_id`, `choco_id`, `patchmypc_name`, `homebrew_cask`,
+`rss_url`, `manual_version`, `notes`.
 
 ---
 
@@ -170,8 +193,8 @@ versions.py       Version parsing/comparison ("is B newer than A?")
 checker.py        Runs all sources for an item and assembles the result
 classifier.py     Security-vs-UI classification (heuristics + Claude)
 sources/          One module per version source
-  winget.py  chocolatey.py  patchmypc.py  homebrew.py  rss.py
-templates/        Jinja2 views (dashboard, detail, form, login, setup)
+  winget.py  chocolatey.py  patchmypc.py  homebrew.py  rss.py  manual.py
+templates/        Jinja2 views (dashboard, detail, form, import, login, setup)
 static/style.css  Dark dashboard styling
 data/             SQLite DB (gitignored — created on first run)
 ```

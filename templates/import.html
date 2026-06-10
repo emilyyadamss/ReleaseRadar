@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Import software · ReleaseRadar{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Import software from JSON</h1>
+  <a class="btn" href="{{ url_for('dashboard') }}">Back</a>
+</div>
+
+<p class="muted">
+  Upload a <code>.json</code> file (or paste JSON below) to add one piece of
+  software or many at once. Each entry needs a <code>name</code> and at least
+  one source identifier; any other fields are optional.
+</p>
+
+<form method="post" class="stack form-wide"
+      action="{{ url_for('import_json') }}" enctype="multipart/form-data">
+
+  <label>JSON file
+    <input type="file" name="file" accept=".json,application/json">
+    <span class="hint">A single object, a list of objects, or
+      <code>{"items": [ … ]}</code>.</span>
+  </label>
+
+  <label>…or paste JSON
+    <textarea name="pasted" rows="8"
+              placeholder='[{"name": "Google Chrome", "winget_id": "Google.Chrome"}]'></textarea>
+  </label>
+
+  <div class="field-row">
+    <button type="submit" class="btn primary">Import</button>
+    <a class="btn" href="{{ url_for('add') }}">Add one manually instead</a>
+  </div>
+</form>
+
+<details class="stack">
+  <summary>Example format</summary>
+  <pre class="code-block">[
+  {
+    "name": "Google Chrome",
+    "platform": "both",
+    "current_version": "120.0.6099.110",
+    "winget_id": "Google.Chrome",
+    "choco_id": "googlechrome",
+    "homebrew_cask": "google-chrome"
+  },
+  {
+    "name": "Internal Dashboard",
+    "platform": "windows",
+    "manual_version": "2.5.1",
+    "notes": "Homegrown tool"
+  }
+]</pre>
+  <p class="muted small">
+    Recognised fields: <code>name</code>, <code>platform</code>
+    (windows / mac / both), <code>current_version</code>, <code>winget_id</code>,
+    <code>choco_id</code>, <code>patchmypc_name</code>, <code>homebrew_cask</code>,
+    <code>rss_url</code>, <code>manual_version</code>, <code>notes</code>.
+  </p>
+</details>
+{% endblock %}

@@ -15,6 +15,7 @@
     <nav>
       <a href="{{ url_for('dashboard') }}">Dashboard</a>
       <a href="{{ url_for('add') }}">Add software</a>
+      <a href="{{ url_for('import_json') }}">Import JSON</a>
       <form action="{{ url_for('logout') }}" method="post" class="inline">
         <button type="submit" class="link-btn">Log out</button>
       </form>
