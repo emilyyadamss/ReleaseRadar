@@ -48,7 +48,9 @@ a:hover { text-decoration: underline; }
 
 /* Flash messages */
 .flashes { margin-bottom: 18px; display: grid; gap: 8px; }
-.flash { padding: 10px 14px; border-radius: var(--radius); border: 1px solid var(--border); }
+.flash { padding: 10px 38px 10px 14px; border-radius: var(--radius); border: 1px solid var(--border); position: relative; }
+.flash-close { position: absolute; top: 6px; right: 8px; background: none; border: none; color: inherit; opacity: .6; font-size: 18px; line-height: 1; cursor: pointer; padding: 4px; }
+.flash-close:hover { opacity: 1; }
 .flash-success { background: rgba(46,204,113,.12); border-color: rgba(46,204,113,.4); }
 .flash-error { background: rgba(255,92,92,.12); border-color: rgba(255,92,92,.4); }
 
@@ -64,6 +66,10 @@ a:hover { text-decoration: underline; }
 .card.warn .num { color: var(--warn); }
 .card.danger .num { color: var(--danger); }
 .card.muted-card .num { color: var(--muted); }
+
+/* Watchlist filter bar */
+.filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+.filter-bar input[type="search"] { flex: 1; max-width: 320px; }
 
 /* Tables */
 .grid { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: var(--radius); overflow: hidden; }

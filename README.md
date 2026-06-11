@@ -176,6 +176,9 @@ them (Chocolatey and the vendor RSS feed are the richest), then:
   TLS-terminating reverse proxy with its own auth.
 - The password is stored only as a salted PBKDF2 hash. There is no account
   recovery — if you forget it, delete `data/releaseradar.db` and set a new one.
+- Every state-changing form carries a CSRF token, responses set standard
+  security headers (CSP, nosniff, frame-deny), and vendor RSS URLs are
+  restricted to `http(s)://`.
 - This uses Flask's built-in dev server, which is fine for a personal,
   localhost-only tool. For anything beyond that, run it under a production WSGI
   server (gunicorn/waitress).

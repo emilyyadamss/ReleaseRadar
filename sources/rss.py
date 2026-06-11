@@ -56,6 +56,10 @@ def fetch(identifier):
     url = (identifier or "").strip()
     if not url:
         return SourceResult("rss", error="no URL")
+    # Guard the scheme here too: fetch() is also called on vendor-notes links
+    # taken from external catalogs, not just on user-entered feed URLs.
+    if not url.lower().startswith(("http://", "https://")):
+        return SourceResult("rss", error="unsupported URL scheme")
 
     try:
         resp = _http.get(url)

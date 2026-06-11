@@ -11,6 +11,7 @@
 
 <form method="post" class="stack form-wide"
       action="{{ url_for('add') if mode == 'add' else url_for('edit', item_id=item.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <div class="field-row">
     <label class="grow">Name *
@@ -59,7 +60,7 @@
     </label>
 
     <label>Vendor RSS / release-notes URL
-      <input type="text" name="rss_url" value="{{ item.rss_url or '' }}"
+      <input type="url" name="rss_url" value="{{ item.rss_url or '' }}"
              placeholder="https://github.com/owner/repo/releases.atom">
       <span class="hint">Used for the most accurate security-vs-UI classification.</span>
     </label>

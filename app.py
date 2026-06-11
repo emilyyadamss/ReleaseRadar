@@ -9,9 +9,12 @@ so it's safe to run on your work machine.
 
 import json
 import secrets
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from flask import (
-    Flask, flash, redirect, render_template, request, session, url_for
+    Flask, abort, flash, redirect, render_template, request, session, url_for
 )
 
 import auth
@@ -40,10 +43,77 @@ def create_app():
     app.config.update(
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
+        MAX_CONTENT_LENGTH=2 * 1024 * 1024,  # bounds the JSON-import upload
     )
+
+    @app.before_request
+    def csrf_protect():
+        if request.method == "POST":
+            token = session.get("csrf_token", "")
+            sent = request.form.get("csrf_token", "")
+            if not token or not secrets.compare_digest(token, sent):
+                abort(400, description="CSRF token missing or invalid. "
+                                       "Reload the page and try again.")
+
+    @app.context_processor
+    def inject_csrf_token():
+        return {"csrf_token": _csrf_token}
+
+    @app.after_request
+    def security_headers(resp):
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault("X-Frame-Options", "DENY")
+        resp.headers.setdefault("Referrer-Policy", "same-origin")
+        resp.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; img-src 'self' data:; "
+            "base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+        )
+        return resp
+
+    @app.errorhandler(413)
+    def payload_too_large(_exc):
+        flash("Upload too large (max 2 MB).", "error")
+        return redirect(url_for("import_json"))
+
+    @app.template_filter("timeago")
+    def timeago(value):
+        """Render an SQLite UTC timestamp as a friendly relative time."""
+        if not value:
+            return "never"
+        try:
+            dt = datetime.strptime(value, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        except ValueError:
+            return value
+        seconds = int((datetime.now(timezone.utc) - dt).total_seconds())
+        if seconds < 60:
+            return "just now"
+        if seconds < 3600:
+            return f"{seconds // 60} min ago"
+        if seconds < 86400:
+            return f"{seconds // 3600} h ago"
+        return f"{seconds // 86400} d ago"
 
     register_routes(app)
     return app
+
+
+def _csrf_token():
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_hex(16)
+    return session["csrf_token"]
+
+
+def _safe_referrer():
+    """The referrer's path when it points at this app, else the dashboard.
+
+    Redirecting to raw request.referrer would let a crafted Referer header
+    bounce the browser to an arbitrary external site.
+    """
+    ref = urlparse(request.referrer or "")
+    if (not ref.netloc or ref.netloc == request.host) and ref.path:
+        return ref.path
+    return url_for("dashboard")
 
 
 ITEM_FIELDS = (
@@ -57,6 +127,17 @@ def _form_to_item(form):
     item = {f: form.get(f, "").strip() for f in ITEM_FIELDS}
     item["platform"] = item["platform"] or "windows"
     return item
+
+
+def _item_error(data):
+    """Validation error for a normalised item dict, or None if it's fine."""
+    if not data["name"]:
+        return 'missing "name"'
+    if not any(data[c] for c in REGISTRY):
+        return "no source identifier (winget_id, choco_id, …)"
+    if data["rss_url"] and not data["rss_url"].lower().startswith(("http://", "https://")):
+        return "the vendor RSS URL must start with http:// or https://"
+    return None
 
 
 def _json_to_item(obj):
@@ -167,10 +248,9 @@ def register_routes(app):
     def add():
         if request.method == "POST":
             data = _form_to_item(request.form)
-            if not data["name"]:
-                flash("Name is required.", "error")
-            elif not any(data[c] for c in REGISTRY):
-                flash("Add at least one source identifier (winget, choco, etc.).", "error")
+            error = _item_error(data)
+            if error:
+                flash(f"Cannot add: {error}.", "error")
             else:
                 database.add_item(data)
                 flash(f"Added {data['name']}.", "success")
@@ -207,12 +287,10 @@ def register_routes(app):
                 errors.append(f"Entry {i}: not a JSON object.")
                 continue
             data = _json_to_item(entry)
-            if not data["name"]:
-                errors.append(f"Entry {i}: missing \"name\".")
-            elif not any(data[c] for c in REGISTRY):
-                errors.append(
-                    f"Entry {i} ({data['name']}): no source identifier "
-                    "(winget_id, choco_id, …).")
+            error = _item_error(data)
+            if error:
+                label = f" ({data['name']})" if data["name"] else ""
+                errors.append(f"Entry {i}{label}: {error}.")
             else:
                 database.add_item(data)
                 added += 1
@@ -237,8 +315,9 @@ def register_routes(app):
             return redirect(url_for("dashboard"))
         if request.method == "POST":
             data = _form_to_item(request.form)
-            if not data["name"]:
-                flash("Name is required.", "error")
+            error = _item_error(data)
+            if error:
+                flash(f"Cannot save: {error}.", "error")
                 return render_template("form.html", item={**item, **data}, mode="edit")
             database.update_item(item_id, data)
             flash(f"Updated {data['name']}.", "success")
@@ -265,15 +344,22 @@ def register_routes(app):
         result = check_item(item)
         database.save_check_result(item_id, result)
         flash(_check_summary(item["name"], result), _flash_level(result))
-        return redirect(request.referrer or url_for("dashboard"))
+        return redirect(_safe_referrer())
 
     @app.route("/check-all", methods=["POST"])
     @auth.login_required
     def check_all():
         items = database.list_items()
+        # Checks are network-bound and independent — run them concurrently,
+        # then write the results from this thread (SQLite connections here
+        # are per-call, but keeping writes serial avoids lock contention).
+        if items:
+            with ThreadPoolExecutor(max_workers=min(8, len(items))) as pool:
+                results = list(pool.map(check_item, items))
+        else:
+            results = []
         updates = 0
-        for item in items:
-            result = check_item(item)
+        for item, result in zip(items, results):
             database.save_check_result(item["id"], result)
             if result["status"] == "update_available":
                 updates += 1
@@ -290,7 +376,7 @@ def register_routes(app):
             return redirect(url_for("dashboard"))
         if not classifier.ai_available():
             flash("AI classification is off. Set ANTHROPIC_API_KEY to enable it.", "error")
-            return redirect(request.referrer or url_for("dashboard"))
+            return redirect(_safe_referrer())
 
         result = classifier.ai_classify(
             item["name"], item.get("latest_version"), item.get("release_notes")
@@ -310,7 +396,7 @@ def register_routes(app):
             f"({result['confidence']:.0%}): {result['reason']}",
             "success" if result["update_type"] != "unknown" else "error",
         )
-        return redirect(request.referrer or url_for("dashboard"))
+        return redirect(_safe_referrer())
 
 
 # --- Helpers --------------------------------------------------------------

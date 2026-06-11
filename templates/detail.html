@@ -5,6 +5,7 @@
   <h1>{{ item.name }}</h1>
   <div class="inline">
     <form action="{{ url_for('check_one', item_id=item.id) }}" method="post" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn primary">⟳ Check now</button>
     </form>
     <a class="btn" href="{{ url_for('edit', item_id=item.id) }}">✎ Edit</a>
@@ -33,7 +34,7 @@
     {% elif item.classify_method == 'auto-notes' %}<span class="tag-heuristic">vendor notes</span>
     {% elif item.classify_method == 'heuristic' %}<span class="tag-heuristic">heuristic</span>{% endif %}
   </strong></div>
-  <div class="kv"><span>Last checked</span><strong>{{ item.last_checked or 'never' }}</strong></div>
+  <div class="kv"><span>Last checked</span><strong {% if item.last_checked %}title="{{ item.last_checked }} UTC"{% endif %}>{{ item.last_checked|timeago }}</strong></div>
 </div>
 
 {% if item.source_results %}
@@ -51,6 +52,7 @@
 <div class="ai-row">
   {% if ai_available %}
   <form action="{{ url_for('classify_ai', item_id=item.id) }}" method="post" class="inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn">✨ Analyze with AI</button>
   </form>
   <span class="muted small">Re-classify these notes using Claude for a more nuanced call.</span>

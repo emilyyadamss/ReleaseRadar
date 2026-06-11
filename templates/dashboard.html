@@ -5,6 +5,7 @@
 <div class="page-head">
   <h1>Software watchlist</h1>
   <form action="{{ url_for('check_all') }}" method="post" class="inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn primary">Check all now</button>
   </form>
 </div>
@@ -22,6 +23,18 @@
     <a class="btn primary" href="{{ url_for('add') }}">Add your first item</a>
   </div>
 {% else %}
+<div class="filter-bar">
+  <input type="search" id="filter-text" placeholder="Filter by name…" autocomplete="off">
+  <select id="filter-status">
+    <option value="">All statuses</option>
+    <option value="update_available">Update available</option>
+    <option value="security">Security updates</option>
+    <option value="up_to_date">Up to date</option>
+    <option value="error">Error</option>
+    <option value="unknown">Not checked</option>
+  </select>
+  <span id="filter-count" class="muted small"></span>
+</div>
 <table class="grid">
   <thead>
     <tr>
@@ -37,7 +50,7 @@
   </thead>
   <tbody>
     {% for it in items %}
-    <tr>
+    <tr data-name="{{ it.name|lower }}" data-status="{{ it.status }}" data-type="{{ it.update_type }}">
       <td>
         <a class="strong" href="{{ url_for('item_detail', item_id=it.id) }}">{{ it.name }}</a>
         {% if it.source_results %}
@@ -76,14 +89,16 @@
           —
         {% endif %}
       </td>
-      <td class="muted small">{{ it.last_checked or "never" }}</td>
+      <td class="muted small" {% if it.last_checked %}title="{{ it.last_checked }} UTC"{% endif %}>{{ it.last_checked|timeago }}</td>
       <td class="actions-col">
         <form action="{{ url_for('check_one', item_id=it.id) }}" method="post" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn tiny" title="Check now">⟳</button>
         </form>
         <a class="btn tiny" href="{{ url_for('edit', item_id=it.id) }}" title="Edit">✎</a>
         <form action="{{ url_for('delete', item_id=it.id) }}" method="post" class="inline"
-              onsubmit="return confirm('Delete {{ it.name }}?');">
+              data-confirm="Delete {{ it.name }}?">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn tiny danger-btn" title="Delete">✕</button>
         </form>
       </td>

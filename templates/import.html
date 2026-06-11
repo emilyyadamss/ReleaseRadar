@@ -14,6 +14,7 @@
 
 <form method="post" class="stack form-wide"
       action="{{ url_for('import_json') }}" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <label>JSON file
     <input type="file" name="file" accept=".json,application/json">

@@ -66,7 +66,12 @@ def verify(password):
 
 
 def login_session():
-    """Mark the current session as authenticated."""
+    """Mark the current session as authenticated.
+
+    The session is cleared first so nothing set pre-login (session fixation)
+    carries over into the authenticated session.
+    """
+    session.clear()
     session["authenticated"] = True
     session["token"] = secrets.token_hex(16)
 
