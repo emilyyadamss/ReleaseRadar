@@ -18,6 +18,7 @@
       <a href="{{ url_for('dashboard') }}">Dashboard</a>
       <a href="{{ url_for('add') }}">Add software</a>
       <a href="{{ url_for('import_json') }}">Import JSON</a>
+      <a href="{{ url_for('export_json') }}">Export JSON</a>
       <form action="{{ url_for('logout') }}" method="post" class="inline">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="link-btn">Log out</button>

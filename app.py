@@ -14,7 +14,8 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from flask import (
-    Flask, abort, flash, redirect, render_template, request, session, url_for
+    Flask, Response, abort, flash, redirect, render_template, request,
+    session, url_for
 )
 
 import auth
@@ -305,6 +306,25 @@ def register_routes(app):
         if added:
             return redirect(url_for("dashboard"))
         return render_template("import.html")
+
+    @app.route("/export")
+    @auth.login_required
+    def export_json():
+        """Download the watchlist as a JSON file that /import can read back."""
+        items = [
+            {f: (it.get(f) or "") for f in ITEM_FIELDS}
+            for it in database.list_items()
+        ]
+        payload = json.dumps({"items": items}, indent=2, ensure_ascii=False)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+        return Response(
+            payload,
+            mimetype="application/json",
+            headers={
+                "Content-Disposition":
+                    f'attachment; filename="releaseradar-export-{stamp}.json"',
+            },
+        )
 
     @app.route("/edit/<int:item_id>", methods=["GET", "POST"])
     @auth.login_required

@@ -57,6 +57,7 @@ a:hover { text-decoration: underline; }
 /* Page heading */
 .page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
 .page-head h1 { margin: 0; font-size: 24px; }
+.head-actions { display: flex; align-items: center; gap: 8px; }
 
 /* Summary cards */
 .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }

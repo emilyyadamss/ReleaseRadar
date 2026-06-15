@@ -4,10 +4,15 @@
 
 <div class="page-head">
   <h1>Software watchlist</h1>
-  <form action="{{ url_for('check_all') }}" method="post" class="inline">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn primary">Check all now</button>
-  </form>
+  <div class="head-actions">
+    {% if items %}
+      <a class="btn" href="{{ url_for('export_json') }}">Export JSON</a>
+    {% endif %}
+    <form action="{{ url_for('check_all') }}" method="post" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn primary">Check all now</button>
+    </form>
+  </div>
 </div>
 
 <div class="cards">
